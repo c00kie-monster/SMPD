@@ -3,7 +3,7 @@ package pl.lodz.p.kis;
 import java.util.Arrays;
 
 /**
- * Klasa reprezentuje pojedynczy obiekt zaciÄ…gniety z pliku. Wykorzystywany
+ * Klasa reprezentuje pojedynczy obiekt zaci¹gniety z pliku. Wykorzystywany
  * podczas klasyfikacji.
  */
 public class Point implements Cloneable, Comparable<Point> {
@@ -11,16 +11,16 @@ public class Point implements Cloneable, Comparable<Point> {
 	public static final int CLASS_B = 1;
 	public static final int UNCLASSIFIED = -1;
 
-	private double[] features; // wszystkie cechy obiektu
-	private double[] selectedFeatures; // cechy wybrane na podstawie
-										// wspolczynnika Fishera
+	private double[] features; 			// wszystkie cechy obiektu
+	private double[] selectedFeatures; 	// cechy wybrane na podstawie wspolczynnika Fishera
 	private int classType;
-	private int id; // numer obiektu
+	private int id; 					// numer obiektu
 	private double distance;
-	private Point centroid; // centroid do ktorego najblizej w KNM
+	private Point centroid; 			// centroid do ktorego najblizej w KNM
 	
 	public Point(int numberOfFeatures) {
 		features = new double[numberOfFeatures];
+		id = -1;						//Punkt nie zwiazany z obiektami zaciagnietymi z pliku
 	}
 
 	public Point(double[] features, int type, int id) {
@@ -47,6 +47,10 @@ public class Point implements Cloneable, Comparable<Point> {
 			selectedFeatures[i] = features[featuresIndices[i]];
 	}
 
+	public void setSelectedFeatures(double[] featuresVector) {
+		selectedFeatures = featuresVector;
+	}
+	
 	public double[] getSelectedFeatures() {
 		return selectedFeatures;
 	}

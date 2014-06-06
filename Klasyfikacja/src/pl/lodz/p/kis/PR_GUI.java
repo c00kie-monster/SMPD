@@ -1301,7 +1301,8 @@ public class PR_GUI extends javax.swing.JFrame {
 	
 		protected List<Point> classifiedPointsA; 
 		protected List<Point> classifiedPointsB; 
-		private List<Point> centroidsList = new ArrayList<>();
+		private List<Point> currentCentroidsList = new ArrayList<>();
+		private List<Point> previousCentoridsList = new ArrayList<>();
 		
 		public KNMClassifier() {
 			super();
@@ -1319,9 +1320,9 @@ public class PR_GUI extends javax.swing.JFrame {
 		 */
 		protected void getRandomCentroids(int classType, int numberOfCentorids) {
 			List<Point> points = getPointsForClass(classType);
-			while(centroidsList.size() != numberOfCentorids) {
+			while(currentCentroidsList.size() != numberOfCentorids) {
 				Collections.shuffle(points);
-				centroidsList.add(points.get(0));
+				currentCentroidsList.add(points.get(0));
 				points.remove(0);
 			}
 		}
@@ -1344,9 +1345,22 @@ public class PR_GUI extends javax.swing.JFrame {
 			getRandomCentroids(Point.CLASS_A, 2);		
 			double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
 			assignDistrictToPoints(distances, classifiedPointsA);
-						
-			System.out.println("[KNM] Assigment.");
 			
+			
+			int d1, d2;
+			d1 = d2 = 0;
+			for (Point p : classifiedPointsA)
+				if (p.getCentroid().equals(currentCentroidsList.get(0)))
+					d1++;
+				else
+					d2++;
+			
+			System.out.println("[KNM] Assigment. D1: " + d1 + " D2: " + d2);
+			double[][] newCentroids = computeAveragesForDistrict(classifiedPointsA);
+						
+			System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
+			setNewCentroids(newCentroids, Point.CLASS_A);
+			System.out.println("Ustawione centroidy: " + currentCentroidsList);
 		}
 		
 		/**
@@ -1354,12 +1368,12 @@ public class PR_GUI extends javax.swing.JFrame {
 		 * Wiersze - centroidy / kolumny - odleglosci dla kolejnych punktow
 		 */
 		protected double[][] computeDistancesFromCentorids(List<Point> points) {
-			double[][] result = new double[centroidsList.size()][points.size()];
+			double[][] result = new double[currentCentroidsList.size()][points.size()];
 					
-			for (int i = 0; i < centroidsList.size(); i++) {
+			for (int i = 0; i < currentCentroidsList.size(); i++) {
 				for (int j = 0; j< points.size();j++) { 
 					double[] differenceVector = subtractVectors(
-							centroidsList.get(i).getSelectedFeatures(), 
+							currentCentroidsList.get(i).getSelectedFeatures(), 
 							points.get(j).getSelectedFeatures());
 					result[i][j] = computeVectorLength(differenceVector);
 				}
@@ -1377,7 +1391,7 @@ public class PR_GUI extends javax.swing.JFrame {
 				for (int i = 0; i < distancesMatrix.length; i++) {
 					if (min > distancesMatrix[i][j]) {
 						min = distancesMatrix[i][j];
-						points.get(j).setCentroid(centroidsList.get(i));
+						points.get(j).setCentroid(currentCentroidsList.get(i));
 					}
 				}
 			}
@@ -1386,15 +1400,14 @@ public class PR_GUI extends javax.swing.JFrame {
 		/**
 		 * Liczymy srednie dla wszystkich puntkow nalezacych do kolejny centroidow. 
 		 * Te srednie stana sie kolejnymi centroidami. 
-		 * Liczyc az  
 		 */
 		protected double[][] computeAveragesForDistrict(List<Point> points) {
-			double[][]result = new double[centroidsList.size()][];
-			for (int i = 0; i < centroidsList.size(); i++) {
+			double[][]result = new double[currentCentroidsList.size()][];
+			for (int i = 0; i < currentCentroidsList.size(); i++) {
 				double[] averages = new double[selectedFeaturesIndices.length];
 				int pointsAmount = 0;	//ile punktow nalezy do danego centrodiu
 				for (int j = 0; j < points.size(); j++) {
-					if (points.get(j).equals(centroidsList.get(i))) {
+					if (points.get(j).getCentroid() == currentCentroidsList.get(i)) {
 						averages = sumVectors(averages, points.get(j).getSelectedFeatures());
 						pointsAmount++;
 					}
@@ -1406,6 +1419,22 @@ public class PR_GUI extends javax.swing.JFrame {
 			}
 			
 			return result;
+		}
+		
+		/**
+		 * Ustawiamy nowe centroidy dla kolejnej iteracji. 
+		 */
+		protected void setNewCentroids(double[][] newCentroids, int classType) {
+			previousCentoridsList.clear();
+			previousCentoridsList.addAll(currentCentroidsList);
+			currentCentroidsList.clear();
+			for (int i = 0; i < newCentroids[0].length; i++) {
+				Point p = new Point(newCentroids[0].length);
+				p.setSelectedFeatures(newCentroids[i]);
+				p.setFeatures(newCentroids[i]);
+				p.setClassType(classType);
+				currentCentroidsList.add(p);
+			}
 		}
 	}
 }
