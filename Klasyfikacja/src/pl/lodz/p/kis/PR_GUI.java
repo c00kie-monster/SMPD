@@ -1342,25 +1342,31 @@ public class PR_GUI extends javax.swing.JFrame {
 		@Override
 		public void execute() {
 			// randomowe centoridy itp
-			getRandomCentroids(Point.CLASS_A, 2);		
-			double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
-			assignDistrictToPoints(distances, classifiedPointsA);
 			
-			
-			int d1, d2;
-			d1 = d2 = 0;
-			for (Point p : classifiedPointsA)
-				if (p.getCentroid().equals(currentCentroidsList.get(0)))
-					d1++;
-				else
-					d2++;
-			
-			System.out.println("[KNM] Assigment. D1: " + d1 + " D2: " + d2);
-			double[][] newCentroids = computeAveragesForDistrict(classifiedPointsA);
-						
-			System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
-			setNewCentroids(newCentroids, Point.CLASS_A);
-			System.out.println("Ustawione centroidy: " + currentCentroidsList);
+			getRandomCentroids(Point.CLASS_A, 2);
+		
+			for (int z = 0; z < 10; z++) {
+				System.out.println("\nPRZEBIEG: " + z);
+				double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
+				assignDistrictToPoints(distances, classifiedPointsA);
+
+				int d1, d2;
+				d1 = d2 = 0;
+				for (Point p : classifiedPointsA)
+					if (p.getCentroid().equals(currentCentroidsList.get(0)))
+						d1++;
+					else
+						d2++;
+
+				System.out.println("[KNM] Assigment. D1: " + d1 + " D2: " + d2);
+				double[][] newCentroids = computeAveragesForDistrict(classifiedPointsA);
+
+				System.out.println("Nowe centroidy.  "
+						+ Arrays.deepToString(newCentroids));
+				setNewCentroids(newCentroids, Point.CLASS_A);
+				if(compareCentorids(previousCentoridsList, currentCentroidsList))
+					break;
+			}
 		}
 		
 		/**
@@ -1435,6 +1441,17 @@ public class PR_GUI extends javax.swing.JFrame {
 				p.setClassType(classType);
 				currentCentroidsList.add(p);
 			}
+		}
+		
+		protected boolean compareCentorids(List<Point> old, List<Point> current) {
+			for (int i = 0; i < old.size(); i++) {
+				double[] oldFeatures = old.get(i).getSelectedFeatures();
+				double[] currentFeatures = current.get(i).getSelectedFeatures();
+				for (int j = 0; j < oldFeatures.length; j++)
+					if (oldFeatures[j] != currentFeatures[j])
+						return false;
+			}
+			return true;
 		}
 	}
 }
