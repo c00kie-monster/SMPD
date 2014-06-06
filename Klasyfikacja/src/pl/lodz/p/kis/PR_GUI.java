@@ -1342,7 +1342,11 @@ public class PR_GUI extends javax.swing.JFrame {
 		public void execute() {
 			// randomowe centoridy itp
 			getRandomCentroids(Point.CLASS_A, 2);		
-			System.out.println("[KNM] Random centroids: " + centroidsList);
+			double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
+			assignDistrictToPoints(distances, classifiedPointsA);
+						
+			System.out.println("[KNM] Assigment.");
+			
 		}
 		
 		/**
@@ -1367,12 +1371,14 @@ public class PR_GUI extends javax.swing.JFrame {
 		/**
 		 * Przydziela do ktorego obszaru nalezy punkt (do ktorego centroidu najblizej). 
 		 */
-		protected void assginDistrictToPoints(double[][] distancesMatrix, List<Point> points) {
-			double min = Double.MAX_VALUE;
+		protected void assignDistrictToPoints(double[][] distancesMatrix, List<Point> points) {
 			for (int j = 0; j < distancesMatrix[0].length; j++) {
-				for (int i = 0; i < distancesMatrix.length; j++) {
-					if (min > distancesMatrix[i][j])
+				double min = Double.MAX_VALUE;
+				for (int i = 0; i < distancesMatrix.length; i++) {
+					if (min > distancesMatrix[i][j]) {
+						min = distancesMatrix[i][j];
 						points.get(j).setCentroid(centroidsList.get(i));
+					}
 				}
 			}
 		}
