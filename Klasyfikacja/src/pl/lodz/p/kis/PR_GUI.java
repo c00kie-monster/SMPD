@@ -1316,6 +1316,8 @@ public class PR_GUI extends javax.swing.JFrame {
 		protected List<Point> classifiedPointsB; 
 		private List<Point> currentCentroidsList = new ArrayList<>();
 		private List<Point> previousCentoridsList = new ArrayList<>();
+		private double[] averagesForSelectedFeaturesA;
+		private double[] averagesForSelectedFeaturesB;
 		
 		public KNMClassifier() {
 			super();
@@ -1325,7 +1327,8 @@ public class PR_GUI extends javax.swing.JFrame {
 			
 			classifiedPointsA = getPointsForClass(Point.CLASS_A);
 			classifiedPointsB = getPointsForClass(Point.CLASS_B);
-			
+			averagesForSelectedFeaturesA = computeAverageForSelectedFeatures(classifiedPointsA);
+			averagesForSelectedFeaturesB = computeAverageForSelectedFeatures(classifiedPointsB);
 		}
 		
 		/**
@@ -1353,9 +1356,18 @@ public class PR_GUI extends javax.swing.JFrame {
 			return result;
 		}
 		
+		@Override
+		protected double[] computeDifferenceVector(double[] averages, Point o) {
+			double[] result = new double[averages.length];
+			for (int i = 0; i < averages.length; i++) {
+				result[i] = o.getSelectedFeatures()[i] - averages[i];
+			}
+			return result;	
+		}
 		
 		@Override
 		public void execute() {
+			
 			List<Matrix> covarianceMatrixListA = findListOfCovarianceMatrixForClass(classifiedPointsA, Point.CLASS_A);
 			currentCentroidsList = new ArrayList<>();
 			previousCentoridsList = new ArrayList<>();
@@ -1366,17 +1378,16 @@ public class PR_GUI extends javax.swing.JFrame {
 				double minB = Double.MAX_VALUE;
 				double[] features = new double[selectedFeaturesIndices.length];
 				
-				for (int i = 0; i < selectedFeaturesIndices.length; i++)
-					features[i] = unclassified.getFeatures()[selectedFeaturesIndices[i]];
+				unclassified.setSelectedFeatures(selectedFeaturesIndices);
 				
 				for (Matrix m : covarianceMatrixListA) {
-					double result = mahalonobisMagic(convertVectorToMatrix(features), m);
+					double result = mahalonobisMagic(convertVectorToMatrix(computeDifferenceVector(averagesForSelectedFeaturesA, unclassified)), m);
 					if (result < minA)
 						minA = result;
 				}
 				
 				for (Matrix m : covarianceMatrixListB) {
-					double result = mahalonobisMagic(convertVectorToMatrix(features), m);
+					double result = mahalonobisMagic(convertVectorToMatrix(computeDifferenceVector(averagesForSelectedFeaturesB, unclassified)), m);
 					if (result < minB)
 						minB = result;
 				}
@@ -1391,6 +1402,8 @@ public class PR_GUI extends javax.swing.JFrame {
 			
 			System.out.println("[KNM] Koniec.");
 		}
+		
+	
 		
 		private List<Matrix> findListOfCovarianceMatrixForClass(List<Point> classifiedPoints, int classType) {
 			double prevE = Double.MAX_VALUE;		// suma odleglosci dla starych centroidow
