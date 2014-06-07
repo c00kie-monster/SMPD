@@ -746,7 +746,9 @@ public class PR_GUI extends javax.swing.JFrame {
 		for (int i = 0; i < numberOfCopies; i++) {
 			result[i] = Arrays.copyOf(avgVector, avgVector.length);
 		}
-		return new Matrix(result).transpose();
+		if (result.length != 0)
+			return new Matrix(result).transpose();
+		else return new Matrix(new double[0][0]);
 	}
 
 	/**
@@ -1354,27 +1356,62 @@ public class PR_GUI extends javax.swing.JFrame {
 		
 		@Override
 		public void execute() {
+			List<Matrix> covarianceMatrixListA = findListOfCovarianceMatrixForClass(classifiedPointsA, Point.CLASS_A);
+			currentCentroidsList = new ArrayList<>();
+			previousCentoridsList = new ArrayList<>();
+			List<Matrix> covarianceMatrixListB = findListOfCovarianceMatrixForClass(classifiedPointsB, Point.CLASS_B);
+						
+			for (Point unclassified : unclassifiedObjects) { 
+				double minA = Double.MAX_VALUE;
+				double minB = Double.MAX_VALUE;
+				double[] features = new double[selectedFeaturesIndices.length];
+				
+				for (int i = 0; i < selectedFeaturesIndices.length; i++)
+					features[i] = unclassified.getFeatures()[selectedFeaturesIndices[i]];
+				
+				for (Matrix m : covarianceMatrixListA) {
+					double result = mahalonobisMagic(convertVectorToMatrix(features), m);
+					if (result < minA)
+						minA = result;
+				}
+				
+				for (Matrix m : covarianceMatrixListB) {
+					double result = mahalonobisMagic(convertVectorToMatrix(features), m);
+					if (result < minB)
+						minB = result;
+				}
+				
+				if (minA < minB)
+					unclassified.setClassType(Point.CLASS_A);
+				else
+					unclassified.setClassType(Point.CLASS_B);
+			}
+			
+			checkEfficiency();
+			
+			System.out.println("[KNM] Koniec.");
+		}
+		
+		private List<Matrix> findListOfCovarianceMatrixForClass(List<Point> classifiedPoints, int classType) {
 			double prevE = Double.MAX_VALUE;		// suma odleglosci dla starych centroidow
 			double currentE = Double.MAX_VALUE;	// suma odleglosci dla nowych centroidow
-			
-			
-			
-			for (int numberOfCentroids = 2; numberOfCentroids < 10; numberOfCentroids++) {
+					
+			for (int numberOfCentroids = 1; numberOfCentroids < 10; numberOfCentroids++) {
 				int z = 0;
-				getRandomCentroids(Point.CLASS_A, numberOfCentroids);
+				getRandomCentroids(classType, numberOfCentroids);
 				while (!compareCentroids(previousCentoridsList, currentCentroidsList)) {
 					prevE = currentE;
 					//System.out.println("\nPRZEBIEG: " + z++);
-					double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
-					assignDistrictToPoints(distances, classifiedPointsA);
-					checkAssigment(classifiedPointsA);
+					double[][] distances = computeDistancesFromCentorids(classifiedPoints);
+					assignDistrictToPoints(distances, classifiedPoints);
+					//checkAssigment(classifiedPoints);
 					
-					currentE = computeSumOfDistances(classifiedPointsA);
+					currentE = computeSumOfDistances(classifiedPoints);
 					//System.out.println("SUMA: " + currentE);
-					double[][] newCentroids = computeAveragesForDistrict(classifiedPointsA, numberOfCentroids);
+					double[][] newCentroids = computeAveragesForDistrict(classifiedPoints, numberOfCentroids);
 
 					//System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
-					setNewCentroids(newCentroids, Point.CLASS_A);
+					setNewCentroids(newCentroids, classType);
 					
 				}
 				if (currentE > prevE) {
@@ -1387,29 +1424,18 @@ public class PR_GUI extends javax.swing.JFrame {
 			
 			System.out.println("ILOSC WYBRANYCH CENTROIDOW: " + currentCentroidsList.size());
 			for (Point p : currentCentroidsList) {
-				Matrix m = createMatrixFromPointsAssignedToDistrict(classifiedPointsA, p);
-				System.out.println(m.getRowDimension() + " x " +  m.getColumnDimension());
-				System.out.println("Srednie dla cech" + Arrays.toString(computeAveragesForMatrix(m)));
+				Matrix m = createMatrixFromPointsAssignedToDistrict(classifiedPoints, p);
+				//System.out.println(m.getRowDimension() + " x " +  m.getColumnDimension());
+				//System.out.println("Srednie dla cech" + Arrays.toString(computeAveragesForMatrix(m)));
 				Matrix clonedAverages = cloneAverages(computeAveragesForMatrix(m), m.getColumnDimension());
 				Matrix covariance = computeCovarianceMatrix(m, clonedAverages);
-				System.out.println(covariance.getRowDimension() + " x " + covariance.getColumnDimension());
+				//System.out.println(covariance.getRowDimension() + " x " + covariance.getColumnDimension());
 				covarianceMatrixListA.add(covariance);
 			}
 			
-			System.out.println(covarianceMatrixListA.size());
-			System.out.println(Arrays.deepToString(covarianceMatrixListA.get(0).getArray()));
-			
-			
-			//dla kazego niesklasyfikowanego
-			Point unclassified = unclassifiedObjects.get(0); 
-				double[] features = new double[selectedFeaturesIndices.length];
-				for (int i = 0; i < selectedFeaturesIndices.length; i++)
-					features[i] = unclassified.getFeatures()[selectedFeaturesIndices[i]];
-				for (Matrix m : covarianceMatrixListA)
-					System.out.println(mahalonobisMagic(convertVectorToMatrix(features), m));
-			
-			
+			return covarianceMatrixListA;
 		}
+		
 		
 		protected Matrix convertVectorToMatrix(double[] v) {
 			double[][] matrix = new double[1][v.length];
