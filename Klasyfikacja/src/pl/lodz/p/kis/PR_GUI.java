@@ -1101,6 +1101,11 @@ public class PR_GUI extends javax.swing.JFrame {
 			for (Point o : unclassifiedObjects)
 				o.setClassType(Point.UNCLASSIFIED);
 
+			for (int i = 0; i < selectedFeaturesIndices.length; i++) {
+				if(selectedFeaturesIndices[i] == 15)
+					selectedFeaturesIndices[i] = 16;
+			}
+			
 			double methodStopTime = System.currentTimeMillis();
 			System.out.println("[generateTrainingSets - stop] Execution Time: "
 					+ (methodStopTime - methodStartTime) + " miliseconds");
@@ -1268,6 +1273,12 @@ public class PR_GUI extends javax.swing.JFrame {
 			return result;
 		}
 		
+		/**
+		 * 
+		 * @param a macierz z cechami
+		 * @param b macierz z powielonymi srednimi
+		 * @return
+		 */
 		protected Matrix computeCovarianceMatrix(Matrix a, Matrix b) {
 			Matrix result = a.minus(b);
 			return result.times(result.transpose());
@@ -1343,26 +1354,118 @@ public class PR_GUI extends javax.swing.JFrame {
 		
 		@Override
 		public void execute() {
-			// randomowe centoridy itp
+			double prevE = Double.MAX_VALUE;		// suma odleglosci dla starych centroidow
+			double currentE = Double.MAX_VALUE;	// suma odleglosci dla nowych centroidow
 			
 			
 			
-			for (int numberOfCentroids = 2; numberOfCentroids < 5; numberOfCentroids++) {
+			for (int numberOfCentroids = 2; numberOfCentroids < 10; numberOfCentroids++) {
 				int z = 0;
 				getRandomCentroids(Point.CLASS_A, numberOfCentroids);
 				while (!compareCentroids(previousCentoridsList, currentCentroidsList)) {
-					System.out.println("\nPRZEBIEG: " + z++);
+					prevE = currentE;
+					//System.out.println("\nPRZEBIEG: " + z++);
 					double[][] distances = computeDistancesFromCentorids(classifiedPointsA);
-					System.out.println("Centroidow: " + numberOfCentroids + " Suma: " + computeSumOfDistances(distances));
 					assignDistrictToPoints(distances, classifiedPointsA);
-
+					checkAssigment(classifiedPointsA);
+					
+					currentE = computeSumOfDistances(classifiedPointsA);
+					//System.out.println("SUMA: " + currentE);
 					double[][] newCentroids = computeAveragesForDistrict(classifiedPointsA, numberOfCentroids);
 
-					System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
+					//System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
 					setNewCentroids(newCentroids, Point.CLASS_A);
 					
 				}
+				if (currentE > prevE) {
+					currentCentroidsList = previousCentoridsList;
+					break;
+				}
 			}
+			
+			List<Matrix> covarianceMatrixListA = new ArrayList<>();
+			
+			System.out.println("ILOSC WYBRANYCH CENTROIDOW: " + currentCentroidsList.size());
+			for (Point p : currentCentroidsList) {
+				Matrix m = createMatrixFromPointsAssignedToDistrict(classifiedPointsA, p);
+				System.out.println(m.getRowDimension() + " x " +  m.getColumnDimension());
+				System.out.println("Srednie dla cech" + Arrays.toString(computeAveragesForMatrix(m)));
+				Matrix clonedAverages = cloneAverages(computeAveragesForMatrix(m), m.getColumnDimension());
+				Matrix covariance = computeCovarianceMatrix(m, clonedAverages);
+				System.out.println(covariance.getRowDimension() + " x " + covariance.getColumnDimension());
+				covarianceMatrixListA.add(covariance);
+			}
+			
+			System.out.println(covarianceMatrixListA.size());
+			System.out.println(Arrays.deepToString(covarianceMatrixListA.get(0).getArray()));
+			
+			
+			//dla kazego niesklasyfikowanego
+			Point unclassified = unclassifiedObjects.get(0); 
+				double[] features = new double[selectedFeaturesIndices.length];
+				for (int i = 0; i < selectedFeaturesIndices.length; i++)
+					features[i] = unclassified.getFeatures()[selectedFeaturesIndices[i]];
+				for (Matrix m : covarianceMatrixListA)
+					System.out.println(mahalonobisMagic(convertVectorToMatrix(features), m));
+			
+			
+		}
+		
+		protected Matrix convertVectorToMatrix(double[] v) {
+			double[][] matrix = new double[1][v.length];
+			matrix[0] = v;
+			return new Matrix(matrix);
+		}
+		
+		/**
+		 * Tworzy macierz ze wszystkich punktow przypisanych do danego obszaru (centroidu).
+		 * cechy x obiekty 
+		 */
+		protected Matrix createMatrixFromPointsAssignedToDistrict(List<Point> points, Point centroid) {
+			int numberOfObjects = 0;
+			
+			for (Point p : points)
+				if (p.getCentroid() == centroid)
+					numberOfObjects++;
+			
+			double[][] result = new double[selectedFeaturesIndices.length][numberOfObjects];
+			for (int i = 0; i < selectedFeaturesIndices.length; i++) {
+				int j = 0;
+				for (Point p : points) {
+					if (p.getCentroid() == centroid) {
+						result[i][j++] = p.getSelectedFeatures()[i];
+					}
+				}
+			}
+			return new Matrix(result);
+		}
+		
+		/**
+		 * Liczy œredni¹ cech dla powyzej wyliczonej macierzy 
+		 * 
+		 */
+		protected double[] computeAveragesForMatrix(Matrix matrix) {
+			double[][] m = matrix.getArray();
+			double[] result = new double[m.length];
+			
+			for (int i = 0; i < m.length; i++) {
+				double sum = 0.0;
+				for (int j = 0; j < m[i].length; j++) {
+					sum += m[i][j];
+				}
+				result[i] = sum / m[i].length;
+			}
+			return result;
+		}
+		
+		private void checkAssigment(List<Point> classified) {
+			int[] d = new int[currentCentroidsList.size()];
+			for (int i = 0; i < currentCentroidsList.size(); i++) {
+				for (Point p : classified)
+					if (p.getCentroid() == currentCentroidsList.get(i))
+						d[i]++;
+			}
+			System.out.println("Przpisanie do centroidow: "+ Arrays.toString(d));	
 		}
 		
 		/**
@@ -1394,6 +1497,7 @@ public class PR_GUI extends javax.swing.JFrame {
 					if (min > distancesMatrix[i][j]) {
 						min = distancesMatrix[i][j];
 						points.get(j).setCentroid(currentCentroidsList.get(i));
+						points.get(j).setDistance(min);
 					}
 				}
 			}
@@ -1415,7 +1519,8 @@ public class PR_GUI extends javax.swing.JFrame {
 					}
 				}
 				for (int j = 0; j < averages.length; j++){
-					averages[j] = averages[j] / pointsAmount;
+					if (pointsAmount != 0)
+						averages[j] = averages[j] / pointsAmount;
 				}
 				result[i] = averages;
 			}
@@ -1458,12 +1563,18 @@ public class PR_GUI extends javax.swing.JFrame {
 		/**
 		 * Liczymy sume odleglosci dla centroidow
 		 */
-		protected double computeSumOfDistances(double[][] distancesMatrix) {
-			double sum = 0.0;
-			for (int i = 0; i < distancesMatrix.length; i++) 
-				for (int j = 0; j < distancesMatrix[i].length; j++) 
-					sum += distancesMatrix[i][j];
-			return sum;
+		protected double computeSumOfDistances(List<Point> points) {
+			double[] sumForCentroids = new double[currentCentroidsList.size()];
+			double result = 0;
+			for(int i = 0; i < currentCentroidsList.size(); i++) {
+				for(Point p : points){
+					if (p.getCentroid() == currentCentroidsList.get(i))
+						sumForCentroids[i] += p.getDistance();
+				}
+				result += sumForCentroids[i];
+			}
+						
+			return result;
 		}
 	}
 }
