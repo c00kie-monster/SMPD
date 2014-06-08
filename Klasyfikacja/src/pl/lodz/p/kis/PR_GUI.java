@@ -246,7 +246,7 @@ public class PR_GUI extends javax.swing.JFrame {
 		jLabel6.setBounds(178, 9, 78, 16);
 
 		selbox_nfeat.setModel(new javax.swing.DefaultComboBoxModel(
-				new String[] { "1", "2", "3" }));
+				new String[] { "1", "2", "3", "4", "5" }));
 		selbox_nfeat.setEnabled(true);
 		jPanel3.add(selbox_nfeat);
 		selbox_nfeat.setBounds(268, 6, 34, 22);
@@ -366,6 +366,13 @@ public class PR_GUI extends javax.swing.JFrame {
 				b_TrainActionPerformed(evt);
 			}
 		});
+		
+		jButton4.addActionListener(new java.awt.event.ActionListener() {
+			public void actionPerformed(java.awt.event.ActionEvent evt) {
+				b_ExecuteActionPerformed(evt);
+			}
+		});
+		
 		jPanel4.add(b_Train);
 		b_Train.setBounds(40, 130, 98, 25);
 
@@ -489,9 +496,14 @@ public class PR_GUI extends javax.swing.JFrame {
 				classifier = new KNMClassifier();
 				break;
 		 }
-		classifier.execute();
+		
 	}// GEN-LAST:event_b_TrainActionPerformed
 
+	private void b_ExecuteActionPerformed(java.awt.event.ActionEvent evt) {
+		if (classifier != null)
+			classifier.execute();
+	}
+	
 	/**
 	 * @param args
 	 *            the command line arguments
@@ -678,8 +690,8 @@ public class PR_GUI extends javax.swing.JFrame {
 			l_FLD_winner.setText(max_ind + "");
 			l_FLD_val.setText(FLD + "");
 		} else {
-			this.computeFisherLD(d);
-			//this.computeSfs(d);
+			//this.computeFisherLD(d);
+			this.computeSfs(d);
 		}
 	}
 
@@ -1099,13 +1111,13 @@ public class PR_GUI extends javax.swing.JFrame {
 					e.printStackTrace();
 				}
 			}
-
+			
 			for (Point o : unclassifiedObjects)
 				o.setClassType(Point.UNCLASSIFIED);
-
+			
 			for (int i = 0; i < selectedFeaturesIndices.length; i++) {
 				if(selectedFeaturesIndices[i] == 15)
-					selectedFeaturesIndices[i] = 16;
+					selectedFeaturesIndices[i] = 17;
 			}
 			
 			double methodStopTime = System.currentTimeMillis();
@@ -1143,6 +1155,8 @@ public class PR_GUI extends javax.swing.JFrame {
 					+ " Properly classified objects: "
 					+ (properlyClassified / Double.valueOf(unclassifiedObjects
 							.size())) * 100 + "%");
+			
+			properlyClassified = 0;
 		}
 	}
 
@@ -1255,22 +1269,11 @@ public class PR_GUI extends javax.swing.JFrame {
 			return result;
 		}
 		
-//		protected double[][] selectFeatures(double[][] features){
-//			double[][] result = new double[selectedFeaturesIndices.length][];
-//			
-//			for (int i = 0; i < selectedFeaturesIndices.length; i++) {
-//				result[i] = features[selectedFeaturesIndices[i]];
-//			}
-//			return result;
-//		}
-		
 		protected double[] selectAverages(double[] averages){
 			double[] result = new double[selectedFeaturesIndices.length];
 			for (int i = 0; i < selectedFeaturesIndices.length; i++) {
 				int selectedFeatureIndex = selectedFeaturesIndices[i];
-				if (selectedFeatureIndex == 15)
-					selectedFeatureIndex = 16;
-				result[i] = averages[selectedFeatureIndex];
+					result[i] = averages[selectedFeatureIndex];
 			}
 			return result;
 		}
@@ -1298,6 +1301,8 @@ public class PR_GUI extends javax.swing.JFrame {
 		}
 		
 		protected double mahalonobisMagic(Matrix differenceVector, Matrix covarianceMatrix) {
+			System.out.println("Mahalonobis macierz kowariancji:\n" + Arrays.deepToString(covarianceMatrix.getArray()));
+			
 			double result = 0.0;
 			Matrix difVectorCopy = new Matrix(differenceVector.getArray());
 			Matrix invertedCovariance = covarianceMatrix.inverse(); 
@@ -1367,17 +1372,19 @@ public class PR_GUI extends javax.swing.JFrame {
 		
 		@Override
 		public void execute() {
-			
-			List<Matrix> covarianceMatrixListA = findListOfCovarianceMatrixForClass(classifiedPointsA, Point.CLASS_A);
 			currentCentroidsList = new ArrayList<>();
 			previousCentoridsList = new ArrayList<>();
+			List<Matrix> covarianceMatrixListA = findListOfCovarianceMatrixForClass(classifiedPointsA, Point.CLASS_A);
+			
+			currentCentroidsList = new ArrayList<>();
+			previousCentoridsList = new ArrayList<>();
+			System.out.println("Klasa B:");
 			List<Matrix> covarianceMatrixListB = findListOfCovarianceMatrixForClass(classifiedPointsB, Point.CLASS_B);
 						
 			for (Point unclassified : unclassifiedObjects) { 
 				double minA = Double.MAX_VALUE;
 				double minB = Double.MAX_VALUE;
-				double[] features = new double[selectedFeaturesIndices.length];
-				
+							
 				unclassified.setSelectedFeatures(selectedFeaturesIndices);
 				
 				for (Matrix m : covarianceMatrixListA) {
@@ -1410,39 +1417,35 @@ public class PR_GUI extends javax.swing.JFrame {
 			double currentE = Double.MAX_VALUE;	// suma odleglosci dla nowych centroidow
 					
 			for (int numberOfCentroids = 1; numberOfCentroids < 10; numberOfCentroids++) {
-				int z = 0;
 				getRandomCentroids(classType, numberOfCentroids);
 				while (!compareCentroids(previousCentoridsList, currentCentroidsList)) {
 					prevE = currentE;
-					//System.out.println("\nPRZEBIEG: " + z++);
 					double[][] distances = computeDistancesFromCentorids(classifiedPoints);
 					assignDistrictToPoints(distances, classifiedPoints);
-					//checkAssigment(classifiedPoints);
-					
+					checkAssigment(classifiedPoints);
 					currentE = computeSumOfDistances(classifiedPoints);
-					//System.out.println("SUMA: " + currentE);
 					double[][] newCentroids = computeAveragesForDistrict(classifiedPoints, numberOfCentroids);
-
-					//System.out.println("Nowe centroidy.  " + Arrays.deepToString(newCentroids));
 					setNewCentroids(newCentroids, classType);
 					
 				}
 				if (currentE > prevE) {
-					currentCentroidsList = previousCentoridsList;
 					break;
 				}
 			}
 			
+			currentCentroidsList = previousCentoridsList;
+			
 			List<Matrix> covarianceMatrixListA = new ArrayList<>();
 			
-			System.out.println("ILOSC WYBRANYCH CENTROIDOW: " + currentCentroidsList.size());
 			for (Point p : currentCentroidsList) {
 				Matrix m = createMatrixFromPointsAssignedToDistrict(classifiedPoints, p);
-				//System.out.println(m.getRowDimension() + " x " +  m.getColumnDimension());
-				//System.out.println("Srednie dla cech" + Arrays.toString(computeAveragesForMatrix(m)));
+				
+				if (m.getColumnDimension() == 0) {
+					continue;
+				}
+								
 				Matrix clonedAverages = cloneAverages(computeAveragesForMatrix(m), m.getColumnDimension());
 				Matrix covariance = computeCovarianceMatrix(m, clonedAverages);
-				//System.out.println(covariance.getRowDimension() + " x " + covariance.getColumnDimension());
 				covarianceMatrixListA.add(covariance);
 			}
 			
@@ -1492,6 +1495,7 @@ public class PR_GUI extends javax.swing.JFrame {
 				for (int j = 0; j < m[i].length; j++) {
 					sum += m[i][j];
 				}
+		
 				result[i] = sum / m[i].length;
 			}
 			return result;
